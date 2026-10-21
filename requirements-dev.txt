@@ -1,0 +1,7 @@
+-r requirements.txt
+
+pytest
+ruff
+mypy
+pre-commit
+pydantic-settings
