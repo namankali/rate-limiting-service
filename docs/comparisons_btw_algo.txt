@@ -1,0 +1,126 @@
+# Rate Limiting Algorithms — Comparison
+
+## 1. Fixed Window Counter
+
+### How it works
+Divides time into fixed, non-overlapping windows. Each client has a request counter and a window start time. Requests are allowed until the configured limit is reached. The counter resets when a new window begins.
+
+### Memory complexity
+- **O(1) per client:** stores a counter and window timestamp.
+
+### Time complexity
+- **O(1) per request** on average, assuming average O(1) dictionary operations.
+
+### Burst handling
+Allows requests up to the configured limit within each window. However, clients can send a burst at the end of one window and another at the beginning of the next, exceeding the intended rate over a short period.
+
+### Advantages
+- Simple implementation.
+- Low memory consumption.
+- Fast request processing.
+
+### Disadvantages
+- Boundary-burst problem.
+- Does not enforce a strict rolling-window limit.
+
+### Suitable use cases
+- Basic API quotas.
+- Per-minute or per-hour request limits.
+- Systems prioritizing simplicity and low overhead.
+
+---
+
+## 2. Sliding Window Log
+
+### How it works
+Stores the timestamp of each accepted request for each client. Before processing a request, timestamps outside the rolling time window are removed. A request is accepted only if the number of remaining timestamps is below the configured limit.
+
+### Memory complexity
+- **O(L) per active client**, where L is the maximum number of accepted requests within the window.
+- Memory usage increases with the request limit and number of active clients.
+
+### Time complexity
+- **O(1) amortized per request** for timestamp insertion and removal, assuming deque operations are O(1).
+- A single request can take O(L) when it removes many expired timestamps.
+
+### Burst handling
+Allows bursts up to the configured limit, but strictly enforces that limit over a rolling window. Unlike Fixed Window, it does not permit an extra burst simply because a fixed-window boundary has passed.
+
+### Advantages
+- Accurate rolling-window enforcement.
+- No fixed-window boundary-burst problem.
+- Straightforward to reason about.
+
+### Disadvantages
+- Higher memory consumption because timestamps must be stored.
+- Cleanup can be expensive for a request that removes many expired timestamps.
+- Requires careful state management for many clients.
+
+### Suitable use cases
+- APIs requiring precise rolling-window limits.
+- Security-sensitive endpoints where accurate request counts matter.
+- Workloads with moderate request limits and manageable client counts.
+
+---
+
+## 3. Token Bucket
+
+### How it works
+Maintains a bucket with a maximum token capacity and a configured refill rate. Each accepted request consumes one token. Tokens replenish according to elapsed time, up to the bucket's capacity. Requests are rejected when no tokens are available.
+
+### Memory complexity
+- **O(1) per client:** stores the current token count and last-refill timestamp, alongside the configured policy.
+- Overall state grows with the number of tracked clients.
+
+### Time complexity
+- **O(1) per request** on average, assuming average O(1) state access.
+
+### Burst handling
+Allows an immediate burst up to the available token count, bounded by bucket capacity. After the bucket is depleted, requests can continue at the rate tokens replenish.
+
+### Advantages
+- Supports controlled bursts.
+- Controls the long-term average request rate.
+- Low memory consumption.
+- Suitable for traffic with variable request patterns.
+
+### Disadvantages
+- Requires careful handling of elapsed time and fractional refill amounts.
+- Does not impose a strict fixed or rolling-window request count.
+- Burst size and sustained rate must be configured appropriately.
+
+### Suitable use cases
+- Public APIs that need burst tolerance.
+- Microservices with variable traffic.
+- Protecting downstream services while allowing occasional traffic spikes.
+
+---
+
+## 4. Summary Comparison
+
+| Characteristic | Fixed Window | Sliding Window Log | Token Bucket |
+|---|---|---|---|
+| State per client | O(1) | O(L) | O(1) |
+| Average request processing | O(1) | O(1) amortized | O(1) |
+| Strict rolling-window limit | No | Yes | No |
+| Allows controlled bursts | Window-based | Up to the window limit | Yes, up to available tokens |
+| Boundary-burst problem | Yes | No | Not applicable in the same way |
+| Memory efficiency | High | Lower | High |
+| Implementation complexity | Low | Moderate | Moderate |
+| Best suited for | Simple quotas | Precise rolling limits | Burst-tolerant traffic |
+
+*Complexity assumes in-memory state and average O(1) dictionary operations. Distributed implementations require additional considerations for atomicity, shared state, and concurrency across service replicas.*
+
+## 5. Production Considerations
+
+The in-memory implementations are useful for understanding and validating algorithm behaviour. However, their state is local to each process and is not automatically shared across multiple service replicas.
+
+For a distributed rate-limiting microservice, the design must also address:
+
+- **Shared state:** clients should be limited consistently across replicas.
+- **Atomicity:** concurrent requests must not exceed the configured limit due to race conditions.
+- **Identity and policy management:** requests must be associated with the correct client and policy.
+- **Failure behaviour:** define what happens when the shared storage system is unavailable.
+- **Observability:** expose useful metrics for allowed and rejected requests, latency, and failures.
+
+The appropriate algorithm depends on whether the primary requirement is simplicity, precise rolling-window enforcement, or controlled bursts.
