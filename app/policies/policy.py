@@ -3,6 +3,7 @@ from enum import Enum
 
 from app.policies.algorithm_config import (
     FixedWindowConfig,
+    LeakyBucketConfig,
     SlidingWindowConfig,
     TokenBucketConfig,
 )
@@ -12,6 +13,7 @@ class RateLimitAlgorithms(Enum):
     FIXED_WINDOW = "fixed_window"
     SLIDING_WINDOW_LOG = "sliding_window_log"
     TOKEN_BUCKET = "token_bucket"
+    LEAKY_BUCKET = "leaky_bucket"
 
 
 class Resources(Enum):
@@ -35,7 +37,9 @@ class Policy:
     identifier: str
     name: str
     algorithm: RateLimitAlgorithms
-    algorithm_config: FixedWindowConfig | SlidingWindowConfig | TokenBucketConfig
+    algorithm_config: (
+        FixedWindowConfig | SlidingWindowConfig | TokenBucketConfig | LeakyBucketConfig
+    )
     identity_type: IdentityTypes
     resource: Resources
     route: str
@@ -61,11 +65,14 @@ class Policy:
             RateLimitAlgorithms.FIXED_WINDOW: FixedWindowConfig,
             RateLimitAlgorithms.SLIDING_WINDOW_LOG: SlidingWindowConfig,
             RateLimitAlgorithms.TOKEN_BUCKET: TokenBucketConfig,
+            RateLimitAlgorithms.LEAKY_BUCKET: LeakyBucketConfig,
         }
 
         expected_config = expected_configs[self.algorithm]
 
         if not isinstance(self.algorithm_config, expected_config):
             raise ValueError(
-                f"{self.algorithm_config} requires {expected_config.__name__}"
+                f"{self.algorithm_config} requires"
+                f"{expected_config.__name__}. "
+                f"got {type(self.algorithm_config).__name__}"
             )

@@ -36,3 +36,15 @@ class TokenBucketConfig:
             raise ValueError("capacity should be positive")
         if not math.isfinite(self.refill_rate) or self.refill_rate <= 0:
             raise ValueError("Refill rate must be positive and finite")
+
+
+@dataclass(frozen=True)
+class LeakyBucketConfig:
+    capacity: int
+    leak_rate: float
+
+    def __post_init__(self) -> None:
+        if self.capacity <= 0:
+            raise ValueError("capacity should be positive")
+        if not math.isfinite(self.leak_rate) or self.leak_rate <= 0:
+            raise ValueError("Leak rate must be positive and finite")

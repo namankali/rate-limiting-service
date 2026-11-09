@@ -5,6 +5,7 @@ from pydantic import BaseModel, model_validator
 from app.helpers.formatter import make_policy_identifier
 from app.policies.algorithm_config import (
     FixedWindowConfig,
+    LeakyBucketConfig,
     SlidingWindowConfig,
     TokenBucketConfig,
 )
@@ -20,7 +21,9 @@ from app.policies.policy import (
 class PolicyRequest(BaseModel):
     name: str
     algorithm: RateLimitAlgorithms
-    algorithm_config: FixedWindowConfig | SlidingWindowConfig | TokenBucketConfig
+    algorithm_config: (
+        FixedWindowConfig | SlidingWindowConfig | TokenBucketConfig | LeakyBucketConfig
+    )
     identity_type: IdentityTypes
     resource: Resources
     route: str = "*"
@@ -45,6 +48,7 @@ class PolicyRequest(BaseModel):
             RateLimitAlgorithms.FIXED_WINDOW: FixedWindowConfig,
             RateLimitAlgorithms.SLIDING_WINDOW_LOG: SlidingWindowConfig,
             RateLimitAlgorithms.TOKEN_BUCKET: TokenBucketConfig,
+            RateLimitAlgorithms.LEAKY_BUCKET: LeakyBucketConfig,
         }
 
         config_model = config_models.get(algorithm)
