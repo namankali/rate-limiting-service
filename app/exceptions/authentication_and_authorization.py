@@ -7,7 +7,7 @@ class AuthenticationError(ApplicationError):
         message: str = "Authentication failed",
         error_code: str = "AUTHENTICATION_ERROR",
         status_code: int = 401,
-    ):
+    ) -> None:
         super().__init__(
             message=message,
             error_code=error_code,
@@ -21,7 +21,7 @@ class AuthorizationError(ApplicationError):
         message: str = "Insufficient permissions",
         error_code: str = "AUTHORIZATION_ERROR",
         status_code: int = 403,
-    ):
+    ) -> None:
         super().__init__(
             message=message,
             error_code=error_code,

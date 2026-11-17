@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Request, status
@@ -6,6 +7,7 @@ from app.helpers.custom_types import DataBaseSession
 from app.services.permissions_service import (
     PermissionCreate,
     PermissionResponse,
+    PermissionsService,
     PermissionUpdate,
 )
 
@@ -25,7 +27,9 @@ async def create_permission(
     session: DataBaseSession,
     request: Request,
 ) -> PermissionResponse:
-    return await request.app.state.permissions_service.create_permission(
+    service = cast(PermissionsService, request.app.state.permissions_service)
+
+    return await service.create_permission(
         session=session,
         payload=payload,
     )
@@ -39,7 +43,9 @@ async def get_all_permissions(
     session: DataBaseSession,
     request: Request,
 ) -> list[PermissionResponse]:
-    return await request.app.state.permissions_service.get_all_permissions(
+    service = cast(PermissionsService, request.app.state.permissions_service)
+
+    return await service.get_all_permissions(
         session=session,
     )
 
@@ -53,7 +59,9 @@ async def get_permission_by_name(
     session: DataBaseSession,
     request: Request,
 ) -> PermissionResponse:
-    return await request.app.state.permissions_service.get_permission_by_name(
+    service = cast(PermissionsService, request.app.state.permissions_service)
+
+    return await service.get_permission_by_name(
         session=session,
         name=name,
     )
@@ -68,7 +76,9 @@ async def get_permission_by_id(
     session: DataBaseSession,
     request: Request,
 ) -> PermissionResponse:
-    return await request.app.state.permissions_service.get_permission_by_id(
+    service = cast(PermissionsService, request.app.state.permissions_service)
+
+    return await service.get_permission_by_id(
         session=session,
         permission_id=permission_id,
     )
@@ -84,7 +94,9 @@ async def update_permission(
     session: DataBaseSession,
     request: Request,
 ) -> PermissionResponse:
-    return await request.app.state.permissions_service.update_permission(
+    service = cast(PermissionsService, request.app.state.permissions_service)
+
+    return await service.update_permission(
         session=session,
         permission_id=permission_id,
         payload=payload,
@@ -100,7 +112,9 @@ async def delete_permission(
     session: DataBaseSession,
     request: Request,
 ) -> None:
-    await request.app.state.permissions_service.delete_permission(
+    service = cast(PermissionsService, request.app.state.permissions_service)
+
+    await service.delete_permission(
         session=session,
         permission_id=permission_id,
     )

@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Request, status
@@ -14,6 +15,8 @@ from app.schemas.service_identity import (
     ServiceIdentityResponse,
     ServiceIdentityUpdate,
 )
+from app.services.service_credential_service import ServiceCredtialsService
+from app.services.service_identity_service import ServiceIdentityService
 
 router = APIRouter()
 
@@ -22,26 +25,27 @@ router = APIRouter()
 async def create_service_identity_(
     payload: ServiceIdentityPayload, session: DataBaseSession, request: Request
 ) -> ServiceIdentityResponse:
-    return await request.app.state.service_identity_service.create_service_identity(
-        session=session, payload=payload
-    )
+    service = cast(ServiceIdentityService, request.app.state.service_identity_service)
+
+    return await service.create_service_identity(session=session, payload=payload)
 
 
 @router.get("/all", response_model=list[ServiceIdentityResponse])
 async def get_service_identites(
     session: DataBaseSession, request: Request
 ) -> list[ServiceIdentityResponse]:
-    return await request.app.state.service_identity_service.get_service_identities(session=session)
+    service = cast(ServiceIdentityService, request.app.state.service_identity_service)
+
+    return await service.get_service_identities(session=session)
 
 
 @router.get("/{service_identity}", response_model=ServiceIdentityResponse)
 async def get_service_identity(
     session: DataBaseSession, service_identity: UUID, request: Request
 ) -> ServiceIdentityResponse:
-    print("hi")
-    return await request.app.state.service_identity_service.get_service_identity_by_id(
-        service_id=service_identity, session=session
-    )
+    service = cast(ServiceIdentityService, request.app.state.service_identity_service)
+
+    return await service.get_service_identity_by_id(service_id=service_identity, session=session)
 
 
 @router.patch(
@@ -54,9 +58,11 @@ async def update_service_identity(
     payload: ServiceIdentityUpdate,
     request: Request,
 ) -> ServiceIdentityResponse:
+    service = cast(ServiceIdentityService, request.app.state.service_identity_service)
+
     updates = payload.model_dump(exclude_unset=True)
 
-    return await request.app.state.service_identity_service.update_service_identity(
+    return await service.update_service_identity(
         session=session, updates=updates, service_identity_id=service_identity_id
     )
 
@@ -69,7 +75,9 @@ async def create_credentials(
     service_identity_id: UUID,
     session: DataBaseSession,
 ) -> ServiceCredentialResponse:
-    return await request.app.state.service_credentials_service.create_service_credetial(
+    service = cast(ServiceCredtialsService, request.app.state.service_credentials_service)
+
+    return await service.create_service_credetial(
         session=session, payload=payload, service_identity_id=service_identity_id
     )
 
@@ -78,9 +86,9 @@ async def create_credentials(
 async def get_by_credential_id(
     session: DataBaseSession, credential_id: str, request: Request
 ) -> ServiceCredentialResponseById:
-    return await request.app.state.service_credentials_service.get_by_credential_id(
-        session=session, credential_id=credential_id
-    )
+    service = cast(ServiceCredtialsService, request.app.state.service_credentials_service)
+
+    return await service.get_by_credential_id(session=session, credential_id=credential_id)
 
 
 @router.get(
@@ -90,7 +98,9 @@ async def get_by_credential_id(
 async def get_credentials_service_id(
     session: DataBaseSession, service_identity_id: UUID, request: Request
 ) -> list[ServiceCredtialResponseByServiceIdentityId]:
-    return await request.app.state.service_credentials_service.get_service_credentials(
+    service = cast(ServiceCredtialsService, request.app.state.service_credentials_service)
+
+    return await service.get_service_credentials(
         session=session, service_identity_id=service_identity_id
     )
 
@@ -99,7 +109,9 @@ async def get_credentials_service_id(
     "/{credential_id}/revoke",
 )
 async def update_service_credential(session: DataBaseSession, credential_id: str, request: Request):
-    return await request.app.state.service_credentials_service.update_service_credential_by_id(
+    service = cast(ServiceCredtialsService, request.app.state.service_credentials_service)
+
+    return await service.update_service_credential_by_id(
         session=session, credential_id=credential_id
     )
 
@@ -108,6 +120,6 @@ async def update_service_credential(session: DataBaseSession, credential_id: str
     "/{credential_id}/rotate",
 )
 async def rotate_service_credential(session: DataBaseSession, credential_id: str, request: Request):
-    return await request.app.state.service_credentials_service.rotate_credentials(
-        session=session, credential_id=credential_id
-    )
+    service = cast(ServiceCredtialsService, request.app.state.service_credentials_service)
+
+    return await service.rotate_credentials(session=session, credential_id=credential_id)

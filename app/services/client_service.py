@@ -1,6 +1,8 @@
+from typing import Any
 from uuid import UUID
 
 from app.data_access.client_data_access import ClientRepository
+from app.db.postgres.models.client import Client
 from app.exceptions.client import ClientNotFoundError
 from app.exceptions.database import DatabaseIntegrityError
 from app.helpers.api_key import generate_api_key, hash_api_key
@@ -12,7 +14,7 @@ class ClientService:
     def __init__(self, repository: ClientRepository):
         self.repository = repository
 
-    async def create_client(self, session: AsyncSession, name: str) -> tuple[object, str]:
+    async def create_client(self, session: AsyncSession, name: str) -> tuple[Client, str]:
         api_key = generate_api_key()
         api_key_hash = hash_api_key(api_key=api_key)
 
@@ -28,7 +30,7 @@ class ClientService:
             await session.rollback()
             raise DatabaseIntegrityError("Client could not be created") from exc
 
-    async def get_client(self, session: AsyncSession, client_id: UUID):
+    async def get_client(self, session: AsyncSession, client_id: UUID) -> Client:
         client = await self.repository.get_by_id(session=session, client_id=client_id)
 
         if client is None:
@@ -36,10 +38,12 @@ class ClientService:
 
         return client
 
-    async def get_all_client(self, session: AsyncSession):
+    async def get_all_client(self, session: AsyncSession) -> list[Client]:
         return await self.repository.get_all_client(session=session)
 
-    async def update(self, session: AsyncSession, client_id: UUID, updates: dict):
+    async def update(
+        self, session: AsyncSession, client_id: UUID, updates: dict[str, Any]
+    ) -> Client:
         client = await self.get_client(client_id=client_id, session=session)
 
         try:
@@ -53,7 +57,7 @@ class ClientService:
             await session.rollback()
             raise DatabaseIntegrityError("client update failed") from exc
 
-    async def delete_client(self, session: AsyncSession, client_id: UUID):
+    async def delete_client(self, session: AsyncSession, client_id: UUID) -> None:
         client = await self.get_client(session, client_id)
 
         try:
