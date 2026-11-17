@@ -37,6 +37,7 @@ class RateLimitingService:
         identity_value: str,
         client_id: UUID,
         session: AsyncSession,
+        method: str,
     ) -> RateLimitResponse:
         # policy = self.registry.policy_selection(
         #     resource=resource,
@@ -50,6 +51,7 @@ class RateLimitingService:
             session=session,
             client_id=client_id,
             route=route,
+            method=method,
         )
 
         if policy is None:

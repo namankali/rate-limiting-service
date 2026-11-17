@@ -1,6 +1,5 @@
 from ipaddress import ip_address
-from typing import Any
-from uuid import UUID
+from typing import Any, Self
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -11,12 +10,12 @@ class RateLimitRequest(BaseModel):
     resource: Resources
     route: str = Field(min_length=1)
     identity_type: IdentityTypes
+    method: str
     identity_value: str = Field(min_length=1)
-    client_id: UUID
 
     @model_validator(mode="before")
     @classmethod
-    def normalise_input(cls, data: Any):
+    def normalise_input(cls, data: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(data, dict):
             return data
 
@@ -31,7 +30,7 @@ class RateLimitRequest(BaseModel):
         return data
 
     @model_validator(mode="after")
-    def validate_identity(self):
+    def validate_identity(self) -> Self:
         if not self.route:
             raise ValueError("Route cannot be empty")
 
@@ -43,6 +42,8 @@ class RateLimitRequest(BaseModel):
                 ip_address(self.identity_value)
             except ValueError:
                 raise ValueError("Invalid IP address") from None
+
+        self.method = self.method.lower()
 
         return self
 

@@ -20,11 +20,6 @@ policy_service = PolicyService(
 )
 
 
-# --------------------------------------------------
-# CREATE POLICY
-# --------------------------------------------------
-
-
 @router.post(
     "/",
     response_model=PolicyResponse,
@@ -33,7 +28,7 @@ policy_service = PolicyService(
 async def create_policy(
     payload: PolicyCreate,
     session: DataBaseSession,
-):
+) -> PolicyResponse:
     try:
         return await policy_service.create_policy(
             session=session,
@@ -59,7 +54,7 @@ async def create_policy(
 )
 async def get_all_policies(
     session: DataBaseSession,
-):
+) -> list[PolicyResponse]:
     return await policy_service.get_all_policies(
         session=session,
     )
@@ -72,7 +67,7 @@ async def get_all_policies(
 async def get_client_policies(
     client_id: UUID,
     session: DataBaseSession,
-):
+) -> list[PolicyResponse]:
     try:
         return await policy_service.get_client_policies(
             session=session,
@@ -90,7 +85,7 @@ async def get_client_policies(
     "/{policy_id}",
     response_model=PolicyResponse,
 )
-async def get_policy(policy_id: UUID, session: DataBaseSession):
+async def get_policy(policy_id: UUID, session: DataBaseSession) -> PolicyResponse:
     try:
         return await policy_service.get_policy(
             session=session,
@@ -112,7 +107,7 @@ async def update_policy(
     policy_id: UUID,
     payload: PolicyUpdate,
     session: DataBaseSession,
-):
+) -> PolicyResponse:
     try:
         updates = payload.model_dump(
             exclude_unset=True,
@@ -144,7 +139,7 @@ async def update_policy(
 async def delete_policy(
     policy_id: UUID,
     session: DataBaseSession,
-):
+) -> None:
     try:
         await policy_service.delete_policy(
             session=session,

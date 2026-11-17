@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Self
 from uuid import UUID
 
 from pydantic import (
@@ -54,8 +54,8 @@ class PolicyCreate(BaseModel):
     client_id: UUID
     name: str = Field(min_length=2, max_length=150)
     resource: Resources
+    method: str
     route: str = Field(min_length=1, max_length=255)
-
     algorithm: RateLimitAlgorithms
     algorithm_config: dict[str, Any]
 
@@ -63,8 +63,8 @@ class PolicyCreate(BaseModel):
     quota_scope: QuotaScope = QuotaScope.PER_IDENTITY
 
     @model_validator(mode="after")
-    def validate_algorithm_config(self):
-        config_schemas = {
+    def validate_algorithm_config(self) -> Self:
+        config_schemas: dict[RateLimitAlgorithms, type[BaseModel]] = {
             RateLimitAlgorithms.FIXED_WINDOW: FixedWindowConfigSchema,
             RateLimitAlgorithms.SLIDING_WINDOW_LOG: SlidingWindowConfigSchema,
             RateLimitAlgorithms.TOKEN_BUCKET: TokenBucketConfigSchema,
@@ -97,7 +97,7 @@ class PolicyUpdate(BaseModel):
     is_active: bool | None = None
 
     @model_validator(mode="after")
-    def validate_update(self):
+    def validate_update(self) -> Self:
         if not self.model_fields_set:
             raise ValueError("At least one field must be provided")
 

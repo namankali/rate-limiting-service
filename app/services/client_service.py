@@ -1,6 +1,8 @@
 from uuid import UUID
 
 from app.data_access.client_data_access import ClientRepository
+from app.exceptions.client import ClientNotFoundError
+from app.exceptions.database import DatabaseIntegrityError
 from app.helpers.api_key import generate_api_key, hash_api_key
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,9 +12,7 @@ class ClientService:
     def __init__(self, repository: ClientRepository):
         self.repository = repository
 
-    async def create_client(
-        self, session: AsyncSession, name: str
-    ) -> tuple[object, str]:
+    async def create_client(self, session: AsyncSession, name: str) -> tuple[object, str]:
         api_key = generate_api_key()
         api_key_hash = hash_api_key(api_key=api_key)
 
@@ -24,15 +24,15 @@ class ClientService:
             await session.commit()
 
             return client, api_key
-        except IntegrityError as exec:
+        except IntegrityError as exc:
             await session.rollback()
-            raise ValueError("Client could not be created") from exec
+            raise DatabaseIntegrityError("Client could not be created") from exc
 
     async def get_client(self, session: AsyncSession, client_id: UUID):
         client = await self.repository.get_by_id(session=session, client_id=client_id)
 
         if client is None:
-            raise LookupError("Client not found")
+            raise ClientNotFoundError("Client not found")
 
         return client
 
@@ -49,12 +49,16 @@ class ClientService:
 
             await session.commit()
             return update_client
-        except IntegrityError as exec:
+        except IntegrityError as exc:
             await session.rollback()
-            raise ValueError("client update failed") from exec
+            raise DatabaseIntegrityError("client update failed") from exc
 
     async def delete_client(self, session: AsyncSession, client_id: UUID):
         client = await self.get_client(session, client_id)
 
-        await self.repository.delete(session, client)
-        await session.commit()
+        try:
+            await self.repository.delete(session, client)
+            await session.commit()
+        except IntegrityError as exc:
+            await session.rollback()
+            raise DatabaseIntegrityError("Client could not be deleted") from exc

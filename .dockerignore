@@ -1,0 +1,39 @@
+
+# Git
+.git/
+.github/
+
+# Virtual environments
+.venv/
+.venv-clean/
+venv/
+env/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Testing and linting
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+benchmarks/
+load_tests/
+concurrent_traffic.py
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+
+# Documentation
+README.md
+docs/

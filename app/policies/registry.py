@@ -28,6 +28,7 @@ class PolicyRequest(BaseModel):
     resource: Resources
     route: str = "*"
     quota_scope: QuotaScope = QuotaScope.PER_IDENTITY
+    method: str
 
     @model_validator(mode="before")
     @classmethod
@@ -44,7 +45,10 @@ class PolicyRequest(BaseModel):
             except ValueError:
                 return data
 
-        config_models = {
+        config_models: dict[
+            RateLimitAlgorithms,
+            type[FixedWindowConfig | SlidingWindowConfig | TokenBucketConfig | LeakyBucketConfig],
+        ] = {
             RateLimitAlgorithms.FIXED_WINDOW: FixedWindowConfig,
             RateLimitAlgorithms.SLIDING_WINDOW_LOG: SlidingWindowConfig,
             RateLimitAlgorithms.TOKEN_BUCKET: TokenBucketConfig,
@@ -78,6 +82,7 @@ class Registry:
                 identity_type=policy_data.identity_type,
                 resource=policy_data.resource,
                 quota_scope=policy_data.quota_scope,
+                method=policy_data.method,
             )
             return True
 
@@ -97,9 +102,7 @@ class Registry:
         identity_type: IdentityTypes,
         identity_value: str,
     ) -> Policy | None:
-        self._validate_input_policy_selection(
-            resource, route, identity_type, identity_value
-        )
+        self._validate_input_policy_selection(resource, route, identity_type, identity_value)
         matched_keys = self._match_keys(
             keys=list(self.policies.keys()),
             resource=resource,

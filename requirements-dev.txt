@@ -1,7 +1,12 @@
 -r requirements.txt
 
-pytest
-ruff
-mypy
-pre-commit
-pydantic-settings
+# Testing
+pytest==9.1.1
+pytest-asyncio==1.4.1.post1
+
+# Code quality
+ruff==0.17.1
+mypy==2.4.0
+
+# Git hooks
+pre-commit==4.7.0

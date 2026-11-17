@@ -19,9 +19,7 @@ class BenchmarkResult:
     peak_memory_bytes: int
 
 
-def generate_workload(
-    number_of_requests: int, number_of_clients: int, seed: int = 42
-) -> list[str]:
+def generate_workload(number_of_requests: int, number_of_clients: int, seed: int = 42) -> list[str]:
     if number_of_requests <= 0:
         raise ValueError("number of requests must be positive")
     if number_of_clients <= 0:
@@ -29,9 +27,7 @@ def generate_workload(
 
     rng = Random(seed)
 
-    return [
-        f"client-{rng.randrange(number_of_clients)}" for _ in range(number_of_requests)
-    ]
+    return [f"client-{rng.randrange(number_of_clients)}" for _ in range(number_of_requests)]
 
 
 def calculate_percentiles(values: list[float], percentile: float) -> float:
@@ -132,9 +128,7 @@ def main() -> None:
             p99_runs.append(result.p99_latency)
 
         memory_algorithm = factory()
-        allow_request = (
-            memory_algorithm.allow if name == "Fixed Window" else memory_algorithm.add
-        )
+        allow_request = memory_algorithm.allow if name == "Fixed Window" else memory_algorithm.add
         peak_memory = measure_memory(allow_request, workload)
 
         print(f"\n{name}")

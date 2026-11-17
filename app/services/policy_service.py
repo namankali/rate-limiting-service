@@ -36,9 +36,7 @@ class PolicyService:
         self,
         algorithm: RateLimitAlgorithms | str,
         config: dict[str, Any],
-    ) -> (
-        FixedWindowConfig | SlidingWindowConfig | TokenBucketConfig | LeakyBucketConfig
-    ):
+    ) -> FixedWindowConfig | SlidingWindowConfig | TokenBucketConfig | LeakyBucketConfig:
         if isinstance(algorithm, str):
             algorithm = RateLimitAlgorithms(algorithm)
 
@@ -95,6 +93,7 @@ class PolicyService:
                 identity_type=payload.identity_type.value,
                 quota_scope=payload.quota_scope.value,
                 name=payload.name,
+                method=payload.method,
             )
 
             # 5. Commit transaction.
@@ -104,9 +103,7 @@ class PolicyService:
 
         except IntegrityError as exc:
             await session.rollback()
-            raise ValueError(
-                "Policy could not be created due to a database constraint"
-            ) from exc
+            raise ValueError("Policy could not be created due to a database constraint") from exc
 
         except Exception:
             await session.rollback()
@@ -193,9 +190,7 @@ class PolicyService:
         invalid_fields = set(updates) - allowed_fields
 
         if invalid_fields:
-            raise ValueError(
-                f"Unsupported policy fields: {', '.join(sorted(invalid_fields))}"
-            )
+            raise ValueError(f"Unsupported policy fields: {', '.join(sorted(invalid_fields))}")
 
         if not updates:
             raise ValueError("At least one field must be provided")
@@ -241,9 +236,7 @@ class PolicyService:
 
         except IntegrityError as exc:
             await session.rollback()
-            raise ValueError(
-                "Policy could not be updated due to a database constraint"
-            ) from exc
+            raise ValueError("Policy could not be updated due to a database constraint") from exc
 
         except Exception:
             await session.rollback()
@@ -278,6 +271,7 @@ class PolicyService:
         route: str,
         identity_type: str,
         client_id: UUID,
+        method: str,
     ) -> Policy | None:
         policy_result = await self.policy.get_matching_policy_candidates(
             session=session,
@@ -285,6 +279,7 @@ class PolicyService:
             route=route,
             resource=resource,
             client_id=client_id,
+            method=method,
         )
 
         if not policy_result:
@@ -338,4 +333,5 @@ class PolicyService:
             quota_scope=quota_scope,
             algorithm_config=algorithm_config,
             name=policy_record.name,
+            method=policy_record.method,
         )

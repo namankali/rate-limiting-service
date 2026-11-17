@@ -2,6 +2,7 @@ from typing import Any
 from uuid import UUID
 
 from app.db.postgres.models.policy import Policy
+from app.policies.policy import IdentityTypes, Resources
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +14,7 @@ class PolicyRepository:
         identifier: str,
         client_id: UUID,
         resource: str,
+        method: str,
         route: str,
         algorithm: str,
         algorithm_config: dict[str, Any],
@@ -30,6 +32,7 @@ class PolicyRepository:
             identity_type=identity_type,
             quota_scope=quota_scope,
             name=name,
+            method=method,
         )
 
         session.add(policy)
@@ -40,19 +43,13 @@ class PolicyRepository:
 
     async def get_by_id(self, session: AsyncSession, policy_id: UUID) -> Policy | None:
         result = await session.execute(
-            select(Policy)
-            .where(Policy.id == policy_id)
-            .where(Policy.is_active.is_(True))
+            select(Policy).where(Policy.id == policy_id).where(Policy.is_active.is_(True))
         )
         return result.scalar_one_or_none()
 
-    async def get_by_identifier(
-        self, session: AsyncSession, identifier: str
-    ) -> Policy | None:
+    async def get_by_identifier(self, session: AsyncSession, identifier: str) -> Policy | None:
         result = await session.execute(
-            select(Policy)
-            .where(Policy.identifier == identifier)
-            .where(Policy.is_active.is_(True))
+            select(Policy).where(Policy.identifier == identifier).where(Policy.is_active.is_(True))
         )
         return result.scalar_one_or_none()
 
@@ -60,9 +57,7 @@ class PolicyRepository:
         self, session: AsyncSession, client_id: UUID
     ) -> list[Policy]:
         result = await session.execute(
-            select(Policy)
-            .where(Policy.client_id == client_id)
-            .where(Policy.is_active.is_(True))
+            select(Policy).where(Policy.client_id == client_id).where(Policy.is_active.is_(True))
         )
         return list(result.scalars().all())
 
@@ -71,9 +66,7 @@ class PolicyRepository:
         session: AsyncSession,
     ) -> list[Policy]:
         result = await session.execute(
-            select(Policy)
-            .where(Policy.is_active.is_(True))
-            .order_by(Policy.created_at.desc())
+            select(Policy).where(Policy.is_active.is_(True)).order_by(Policy.created_at.desc())
         )
         return list(result.scalars().all())
 
@@ -95,16 +88,18 @@ class PolicyRepository:
     async def get_matching_policy_candidates(
         self,
         session: AsyncSession,
-        resource: str,
+        resource: Resources,
         route: str,
-        identity_type: str,
+        identity_type: IdentityTypes,
         client_id: UUID,
+        method: str,
     ) -> Policy:
         query = select(Policy).where(
             Policy.resource == resource.value,
             Policy.client_id == client_id,
             Policy.identity_type == identity_type.value,
             Policy.is_active.is_(True),
+            Policy.method == method,
             or_(Policy.route == route, Policy.route == "*"),
         )
 

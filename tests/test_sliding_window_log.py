@@ -25,9 +25,7 @@ def test_allows_request_after_old_timestamp_expires() -> None:
     def fake_clock() -> float:
         return clock[0]
 
-    sliding_window_log = SlidingWindowLog(
-        window_duration=60, limit=3, _clock=fake_clock
-    )
+    sliding_window_log = SlidingWindowLog(window_duration=60, limit=3, _clock=fake_clock)
 
     assert sliding_window_log.add("naman") is True
 
@@ -50,9 +48,7 @@ def test_clients_have_independent_request_limits() -> None:
     def fake_clock() -> float:
         return clock[0]
 
-    sliding_window_log = SlidingWindowLog(
-        window_duration=60, limit=2, _clock=fake_clock
-    )
+    sliding_window_log = SlidingWindowLog(window_duration=60, limit=2, _clock=fake_clock)
 
     assert sliding_window_log.add("naman") is True
     assert sliding_window_log.add("naman") is True
@@ -69,9 +65,7 @@ def test_timestamp_expires_at_exact_window_boundary() -> None:
     def fake_clock() -> float:
         return clock[0]
 
-    sliding_window_log = SlidingWindowLog(
-        window_duration=60, limit=2, _clock=fake_clock
-    )
+    sliding_window_log = SlidingWindowLog(window_duration=60, limit=2, _clock=fake_clock)
 
     assert sliding_window_log.add("naman") is True
     assert sliding_window_log.add("naman") is True
@@ -90,9 +84,7 @@ def test_allows_requests_when_window_becomes_empty() -> None:
     def fake_clock() -> float:
         return clock[0]
 
-    sliding_window_log = SlidingWindowLog(
-        window_duration=60, limit=2, _clock=fake_clock
-    )
+    sliding_window_log = SlidingWindowLog(window_duration=60, limit=2, _clock=fake_clock)
 
     assert sliding_window_log.add("naman") is True
     assert sliding_window_log.add("naman") is True

@@ -1,5 +1,7 @@
 # rate-limiting-service
 
+<!-- Startup -->
+python3 -m  uvicorn app.main:app --reload --port 8002 
 
 <!-- ruff commands -->
 
@@ -23,3 +25,11 @@ alembic revision --autogenerate -m "........"
 alembic upgrade head
 <!-- 3. Verify -->
 alembic current
+
+
+<!-- Delete venv -->
+rm -rf .venv-clean
+
+
+<!-- Docker build -->
+docker build --platform linux/arm64 -t rate-limiting-service:latest .

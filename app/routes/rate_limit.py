@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 
+from app.dependencies.authorization import AuthorizationServiceDependency
 from app.helpers.custom_types import DataBaseSession
 from app.schemas.rate_limit import RateLimitRequest, RateLimitResponse
 
@@ -8,8 +9,12 @@ router = APIRouter()
 
 @router.post("/v1/check", response_model=RateLimitResponse)
 async def evaluate_request(
-    request: Request, payload: RateLimitRequest, session: DataBaseSession
-):
+    request: Request,
+    payload: RateLimitRequest,
+    session: DataBaseSession,
+    authorisation: AuthorizationServiceDependency,
+) -> RateLimitResponse:
+    print("authorisation", authorisation)
     service = request.app.state.rate_limiting_service
     try:
         result = await service.evaluate_request(
@@ -17,8 +22,9 @@ async def evaluate_request(
             route=payload.route,
             identity_type=payload.identity_type,
             identity_value=payload.identity_value,
-            client_id=payload.client_id,
+            client_id=authorisation.get("client_id"),
             session=session,
+            method=payload.method,
         )
 
         return result

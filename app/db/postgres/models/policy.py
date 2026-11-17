@@ -11,9 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 class Policy(Base):
     __tablename__ = "policies"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     name: Mapped[str] = mapped_column(
         String(150),
@@ -30,6 +28,8 @@ class Policy(Base):
     )
 
     resource: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    method: Mapped[str] = mapped_column(String(100), nullable=False)
 
     route: Mapped[str] = mapped_column(String(255), nullable=False)
 

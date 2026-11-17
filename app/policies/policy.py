@@ -11,13 +11,18 @@ from app.policies.algorithm_config import (
 
 class RateLimitAlgorithms(Enum):
     FIXED_WINDOW = "fixed_window"
-    SLIDING_WINDOW_LOG = "sliding_window_log"
+    SLIDING_WINDOW_LOG = "sliding_window"
     TOKEN_BUCKET = "token_bucket"
     LEAKY_BUCKET = "leaky_bucket"
 
 
 class Resources(Enum):
     AI_DEVOPS = "ai-devops"
+    CHAT = "chat"
+    AUTHENTICATION = "authentication"
+    METRICS = "metrics"
+    KUBERNETES = "kubernetes"
+    GITHUB_INTEGRATION = "github-integration"
 
 
 class IdentityTypes(Enum):
@@ -43,6 +48,7 @@ class Policy:
     identity_type: IdentityTypes
     resource: Resources
     route: str
+    method: str
     quota_scope: QuotaScope = QuotaScope.PER_IDENTITY
 
     def __post_init__(self) -> None:
