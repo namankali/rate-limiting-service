@@ -1,4 +1,3 @@
-# rate-limiting-service
 # Rate Limiting Microservice
 
 <p align="center">
