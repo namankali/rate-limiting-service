@@ -30,10 +30,12 @@ async def create_policy(
     session: DataBaseSession,
 ) -> PolicyResponse:
     try:
-        return await policy_service.create_policy(
+        policy = await policy_service.create_policy(
             session=session,
             payload=payload,
         )
+
+        return PolicyResponse.model_validate(policy)
 
     except LookupError as exc:
         raise HTTPException(
@@ -55,9 +57,11 @@ async def create_policy(
 async def get_all_policies(
     session: DataBaseSession,
 ) -> list[PolicyResponse]:
-    return await policy_service.get_all_policies(
+    policies = await policy_service.get_all_policies(
         session=session,
     )
+
+    return [PolicyResponse.model_validate(policy) for policy in policies]
 
 
 @router.get(
@@ -69,10 +73,12 @@ async def get_client_policies(
     session: DataBaseSession,
 ) -> list[PolicyResponse]:
     try:
-        return await policy_service.get_client_policies(
+        policies = await policy_service.get_client_policies(
             session=session,
             client_id=client_id,
         )
+
+        return [PolicyResponse.model_validate(policy) for policy in policies]
 
     except LookupError as exc:
         raise HTTPException(
@@ -87,10 +93,11 @@ async def get_client_policies(
 )
 async def get_policy(policy_id: UUID, session: DataBaseSession) -> PolicyResponse:
     try:
-        return await policy_service.get_policy(
+        policy = await policy_service.get_policy(
             session=session,
             policy_id=policy_id,
         )
+        return PolicyResponse.model_validate(policy)
 
     except LookupError as exc:
         raise HTTPException(
@@ -113,11 +120,13 @@ async def update_policy(
             exclude_unset=True,
         )
 
-        return await policy_service.update_policy(
+        policy = await policy_service.update_policy(
             session=session,
             policy_id=policy_id,
             updates=updates,
         )
+
+        return PolicyResponse.model_validate(policy)
 
     except LookupError as exc:
         raise HTTPException(

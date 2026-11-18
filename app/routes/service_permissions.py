@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Request, status
@@ -5,6 +6,7 @@ from fastapi import APIRouter, Request, status
 from app.helpers.custom_types import DataBaseSession
 from app.services.service_permissions import (
     ServicePermissionAssignPayload,
+    ServicePermissionsService,
 )
 
 router = APIRouter(
@@ -22,7 +24,8 @@ async def assign_permission(
     session: DataBaseSession,
     request: Request,
 ):
-    return await request.app.state.service_permissions_service.assign_permission(
+    service = cast(ServicePermissionsService, request.app.state.service_permissions_service)
+    return await service.assign_permission(
         session=session,
         payload=payload,
     )
@@ -34,7 +37,8 @@ async def get_service_permissions(
     session: DataBaseSession,
     request: Request,
 ):
-    return await request.app.state.service_permissions_service.get_service_permissions(
+    service = cast(ServicePermissionsService, request.app.state.service_permissions_service)
+    return await service.get_service_permissions(
         session=session,
         service_identity_id=service_identity_id,
     )
@@ -50,7 +54,8 @@ async def remove_permission(
     session: DataBaseSession,
     request: Request,
 ):
-    await request.app.state.service_permissions_service.remove_permission(
+    service = cast(ServicePermissionsService, request.app.state.service_permissions_service)
+    await service.remove_permission(
         session=session,
         service_identity_id=service_identity_id,
         permission_id=permission_id,
@@ -64,7 +69,8 @@ async def check_permission(
     session: DataBaseSession,
     request: Request,
 ) -> dict[str, bool]:
-    allowed = await request.app.state.service_permissions_service.check_permission(
+    service = cast(ServicePermissionsService, request.app.state.service_permissions_service)
+    allowed = await service.check_permission(
         session=session,
         service_identity_id=service_identity_id,
         permission_name=permission_name,

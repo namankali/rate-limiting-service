@@ -117,62 +117,63 @@ class ServiceCredtialsService:
                 f"Error while revoking service credential: {credential_id}"
             ) from exc
 
+    async def rotate_credentials(
+        self, session: AsyncSession, credential_id: str
+    ) -> ServiceCredentialResponse:
+        try:
+            service_credential_data = (
+                await self.service_credential_data_access.get_by_credential_id(
+                    session=session,
+                    credential_id=credential_id,
+                )
+            )
 
-async def rotate_credentials(
-    self, session: AsyncSession, credential_id: str
-) -> ServiceCredentialResponse:
-    try:
-        service_credential_data = await self.service_credential_data_access.get_by_credential_id(
-            session=session,
-            credential_id=credential_id,
-        )
+            if service_credential_data is None:
+                raise ServiceCredentialNotFound(f"Service credential not found: {credential_id}")
 
-        if service_credential_data is None:
-            raise ServiceCredentialNotFound(f"Service credential not found: {credential_id}")
+            if service_credential_data["revoked_at"] is not None:
+                raise InvalidServiceCredntialError("Cannot rotate an already revoked credential")
 
-        if service_credential_data["revoked_at"] is not None:
-            raise InvalidServiceCredntialError("Cannot rotate an already revoked credential")
+            new_credential_id = CredentialManager.generate_credential_id()
+            new_secret = CredentialManager.generate_secret()
 
-        new_credential_id = CredentialManager.generate_credential_id()
-        new_secret = CredentialManager.generate_secret()
+            credential_hash = CredentialManager.generate_verifier(
+                hmac_key=self.hmac_keys[self.hmac_key_version],
+                secret=new_secret,
+            )
 
-        credential_hash = CredentialManager.generate_verifier(
-            hmac_key=self.hmac_keys[self.hmac_key_version],
-            secret=new_secret,
-        )
+            current_time = datetime.now(UTC)
 
-        current_time = datetime.now(UTC)
+            await self.service_credential_data_access.revoke_by_credential_id(
+                session=session,
+                credential_id=credential_id,
+            )
 
-        await self.service_credential_data_access.revoke_by_credential_id(
-            session=session,
-            credential_id=credential_id,
-        )
+            await self.service_credential_data_access.create(
+                session=session,
+                service_identity_id=service_credential_data["service_identity_id"],
+                key_version=self.hmac_key_version,
+                name=service_credential_data["name"],
+                not_before=current_time,
+                credential_id=new_credential_id,
+                credential_hash=credential_hash,
+            )
 
-        await self.service_credential_data_access.create(
-            session=session,
-            service_identity_id=service_credential_data["service_identity_id"],
-            key_version=self.hmac_key_version,
-            name=service_credential_data["name"],
-            not_before=current_time,
-            credential_id=new_credential_id,
-            credential_hash=credential_hash,
-        )
+            await session.commit()
 
-        await session.commit()
+            return {
+                "credential": f"{new_credential_id}:{new_secret}",
+                "service_identity_id": service_credential_data["service_identity_id"],
+                "name": service_credential_data["name"],
+                "not_before": current_time,
+            }
 
-        return {
-            "credential": f"{new_credential_id}:{new_secret}",
-            "service_identity_id": service_credential_data["service_identity_id"],
-            "name": service_credential_data["name"],
-            "not_before": current_time,
-        }
+        except ServiceCredentialNotFound, InvalidServiceCredntialError:
+            await session.rollback()
+            raise
 
-    except ServiceCredentialNotFound, InvalidServiceCredntialError:
-        await session.rollback()
-        raise
-
-    except IntegrityError as exc:
-        await session.rollback()
-        raise DatabaseIntegrityError(
-            f"Database error while rotating credential: {credential_id}"
-        ) from exc
+        except IntegrityError as exc:
+            await session.rollback()
+            raise DatabaseIntegrityError(
+                f"Database error while rotating credential: {credential_id}"
+            ) from exc

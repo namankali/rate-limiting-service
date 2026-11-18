@@ -1,7 +1,8 @@
-from typing import Annotated, Any
+from typing import Annotated, cast
 
 from app.exceptions.authentication_and_authorization import AuthenticationError
 from app.helpers.custom_types import DataBaseSession
+from app.services.authentication import AuthenticateResponse, Authentication
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -27,11 +28,10 @@ BearerCredentials = Annotated[str, Depends(get_bearer_credential)]
 
 async def get_authenticated_service(
     request: Request, session: DataBaseSession, credentials: BearerCredentials
-):
+) -> AuthenticateResponse:
     try:
-        authenticated = await request.app.state.authentication.authenticate(
-            session=session, credential=credentials
-        )
+        service = cast(Authentication, request.app.state.authentication)
+        authenticated = await service.authenticate(session=session, credential=credentials)
 
         return authenticated
     except AuthenticationError as exc:
@@ -42,4 +42,4 @@ async def get_authenticated_service(
         ) from exc
 
 
-AuthenticatedServiceDependency = Annotated[dict[str, Any], Depends(get_authenticated_service)]
+AuthenticatedServiceDependency = Annotated[AuthenticateResponse, Depends(get_authenticated_service)]

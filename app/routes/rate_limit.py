@@ -1,8 +1,11 @@
+from typing import cast
+
 from fastapi import APIRouter, HTTPException, Request
 
 from app.dependencies.authorization import AuthorizationServiceDependency
 from app.helpers.custom_types import DataBaseSession
 from app.schemas.rate_limit import RateLimitRequest, RateLimitResponse
+from app.services.rate_limiting_service import RateLimitingService
 
 router = APIRouter()
 
@@ -15,14 +18,14 @@ async def evaluate_request(
     authorisation: AuthorizationServiceDependency,
 ) -> RateLimitResponse:
     print("authorisation", authorisation)
-    service = request.app.state.rate_limiting_service
+    service = cast(RateLimitingService, request.app.state.rate_limiting_service)
     try:
         result = await service.evaluate_request(
             resource=payload.resource,
             route=payload.route,
             identity_type=payload.identity_type,
             identity_value=payload.identity_value,
-            client_id=authorisation.get("client_id"),
+            client_id=authorisation.client_id,
             session=session,
             method=payload.method,
         )

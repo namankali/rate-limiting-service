@@ -267,7 +267,7 @@ class PolicyService:
     async def get_matching_policy(
         self,
         session: AsyncSession,
-        resource: str,
+        resource: Resources,
         route: str,
         identity_type: str,
         client_id: UUID,

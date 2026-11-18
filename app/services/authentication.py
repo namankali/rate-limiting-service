@@ -1,19 +1,32 @@
 from datetime import UTC, datetime
+from typing import Any
+from uuid import UUID
 
 from app.data_access.service_credentials_data_access import ServiceCredentialsRepository
 from app.exceptions.authentication_and_authorization import AuthenticationError
 from app.exceptions.database import DatabaseIntegrityError
 from app.security.credential_manager import CredentialManager
+from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
+class AuthenticateResponse(BaseModel):
+    service_id: UUID
+    client_id: UUID
+    client_name: str
+
+
 class Authentication:
-    def __init__(self, service_credential_data_access: ServiceCredentialsRepository, hmac_keys):
+    def __init__(
+        self,
+        service_credential_data_access: ServiceCredentialsRepository,
+        hmac_keys: dict[str, Any],
+    ) -> None:
         self.service_credential_data_access = service_credential_data_access
         self.hmac_keys = hmac_keys
 
-    async def authenticate(self, credential: str, session: AsyncSession):
+    async def authenticate(self, credential: str, session: AsyncSession) -> AuthenticateResponse:
         parts = credential.split(":", maxsplit=1)
         if len(parts) != 2 or not all(parts):
             raise AuthenticationError("Invalid credential format")
@@ -62,11 +75,11 @@ class Authentication:
             if update_last_used != 1:
                 raise AuthenticationError("Credential could not be updated")
 
-            return {
-                "service_id": credential_data.service_identity_id,
-                "client_id": credential_data.client_id,
-                "client_name": credential_data.client_name,
-            }
+            return AuthenticateResponse(
+                service_id=credential_data.service_identity_id,
+                client_id=credential_data.client_id,
+                client_name=credential_data.client_name,
+            )
 
         except IntegrityError as exc:
             raise DatabaseIntegrityError(

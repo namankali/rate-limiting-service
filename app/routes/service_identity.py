@@ -27,7 +27,9 @@ async def create_service_identity_(
 ) -> ServiceIdentityResponse:
     service = cast(ServiceIdentityService, request.app.state.service_identity_service)
 
-    return await service.create_service_identity(session=session, payload=payload)
+    service_identity = await service.create_service_identity(session=session, payload=payload)
+
+    return ServiceIdentityResponse.model_validate(service_identity)
 
 
 @router.get("/all", response_model=list[ServiceIdentityResponse])
@@ -36,7 +38,9 @@ async def get_service_identites(
 ) -> list[ServiceIdentityResponse]:
     service = cast(ServiceIdentityService, request.app.state.service_identity_service)
 
-    return await service.get_service_identities(session=session)
+    service_identites = await service.get_service_identities(session=session)
+
+    return [ServiceIdentityResponse.model_validate(si) for si in service_identites]
 
 
 @router.get("/{service_identity}", response_model=ServiceIdentityResponse)
@@ -45,7 +49,11 @@ async def get_service_identity(
 ) -> ServiceIdentityResponse:
     service = cast(ServiceIdentityService, request.app.state.service_identity_service)
 
-    return await service.get_service_identity_by_id(service_id=service_identity, session=session)
+    service_identity_record = await service.get_service_identity_by_id(
+        service_id=service_identity, session=session
+    )
+
+    return ServiceIdentityResponse.model_validate(service_identity_record)
 
 
 @router.patch(
@@ -62,9 +70,11 @@ async def update_service_identity(
 
     updates = payload.model_dump(exclude_unset=True)
 
-    return await service.update_service_identity(
+    service_identity = await service.update_service_identity(
         session=session, updates=updates, service_identity_id=service_identity_id
     )
+
+    return ServiceIdentityResponse.model_validate(service_identity)
 
 
 # service credentials APIs
@@ -88,7 +98,11 @@ async def get_by_credential_id(
 ) -> ServiceCredentialResponseById:
     service = cast(ServiceCredtialsService, request.app.state.service_credentials_service)
 
-    return await service.get_by_credential_id(session=session, credential_id=credential_id)
+    service_credential = await service.get_by_credential_id(
+        session=session, credential_id=credential_id
+    )
+
+    return ServiceCredentialResponseById.model_validate(service_credential)
 
 
 @router.get(
@@ -100,15 +114,22 @@ async def get_credentials_service_id(
 ) -> list[ServiceCredtialResponseByServiceIdentityId]:
     service = cast(ServiceCredtialsService, request.app.state.service_credentials_service)
 
-    return await service.get_service_credentials(
+    service_credentials = await service.get_service_credentials(
         session=session, service_identity_id=service_identity_id
     )
+
+    return [
+        ServiceCredtialResponseByServiceIdentityId.model_validate(service_credential)
+        for service_credential in service_credentials
+    ]
 
 
 @router.patch(
     "/{credential_id}/revoke",
 )
-async def update_service_credential(session: DataBaseSession, credential_id: str, request: Request):
+async def update_service_credential(
+    session: DataBaseSession, credential_id: str, request: Request
+) -> int:
     service = cast(ServiceCredtialsService, request.app.state.service_credentials_service)
 
     return await service.update_service_credential_by_id(
@@ -116,10 +137,12 @@ async def update_service_credential(session: DataBaseSession, credential_id: str
     )
 
 
-@router.patch(
-    "/{credential_id}/rotate",
-)
-async def rotate_service_credential(session: DataBaseSession, credential_id: str, request: Request):
+@router.patch("/{credential_id}/rotate", response_model=ServiceCredentialResponse)
+async def rotate_service_credential(
+    session: DataBaseSession, credential_id: str, request: Request
+) -> ServiceCredentialResponse:
     service = cast(ServiceCredtialsService, request.app.state.service_credentials_service)
 
-    return await service.rotate_credentials(session=session, credential_id=credential_id)
+    service_cred = await service.rotate_credentials(session=session, credential_id=credential_id)
+
+    return ServiceCredentialResponse.model_validate(service_cred)

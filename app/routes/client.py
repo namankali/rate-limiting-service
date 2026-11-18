@@ -41,7 +41,8 @@ async def create_client(payload: ClientCreate, session: DataBaseSession) -> Clie
 @router.get("/all", response_model=list[ClientResponse])
 async def get_clients(session: DataBaseSession) -> list[ClientResponse]:
     try:
-        return await client_service.get_all_client(session=session)
+        clients = await client_service.get_all_client(session=session)
+        return [ClientResponse.model_validate(client) for client in clients]
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -49,7 +50,9 @@ async def get_clients(session: DataBaseSession) -> list[ClientResponse]:
 @router.get("/{client_id}", response_model=ClientResponse)
 async def get_client(client_id: UUID, session: DataBaseSession) -> ClientResponse:
     try:
-        return await client_service.get_client(session=session, client_id=client_id)
+        client = await client_service.get_client(session=session, client_id=client_id)
+
+        return ClientResponse.model_validate(client)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -68,7 +71,9 @@ async def update_client(
         updates = payload.model_dump(exclude_unset=True)
         updates["is_active"] = client_data.is_active
 
-        return await client_service.update(client_id=client_id, session=session, updates=updates)
+        client = await client_service.update(client_id=client_id, session=session, updates=updates)
+
+        return ClientResponse.model_validate(client)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
