@@ -1,10 +1,13 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import Any, cast
 from uuid import UUID
 
 from app.db.postgres.models.client import Client
 from app.db.postgres.models.service_credentials import ServiceCredentials
 from app.db.postgres.models.service_identity import ServiceIdentity
-from sqlalchemy import or_, select, update
+from sqlalchemy import RowMapping, or_, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -36,7 +39,7 @@ class ServiceCredentialsRepository:
 
     async def get_by_credential_id(
         self, session: AsyncSession, credential_id: str, hash: bool = False
-    ):
+    ) -> RowMapping | None:
         columns = [
             ServiceCredentials.id,
             ServiceCredentials.name,
@@ -71,7 +74,7 @@ class ServiceCredentialsRepository:
 
     async def get_credetials_details_by_service_id(
         self, session: AsyncSession, service_identity_id: UUID
-    ):
+    ) -> Sequence[RowMapping]:
         query = select(
             ServiceCredentials.service_identity_id,
             ServiceCredentials.credential_id,
@@ -87,7 +90,7 @@ class ServiceCredentialsRepository:
 
     async def get_valid_credential_by_credential_id(
         self, session: AsyncSession, credential_id: str
-    ):
+    ) -> ServiceCredentials | None:
         query = (
             select(ServiceCredentials)
             .where(ServiceCredentials.credential_id == credential_id)
@@ -103,7 +106,7 @@ class ServiceCredentialsRepository:
         result = await session.execute(query)
         return result.scalar_one_or_none()
 
-    async def revoke_by_credential_id(self, session: AsyncSession, credential_id: str):
+    async def revoke_by_credential_id(self, session: AsyncSession, credential_id: str) -> int:
         current_time = datetime.now(UTC)
         query = (
             update(ServiceCredentials)
@@ -118,9 +121,11 @@ class ServiceCredentialsRepository:
         )
 
         result = await session.execute(query)
-        return result.rowcount
+        cursor_result = cast(CursorResult[Any], result)
 
-    async def update_last_used(self, session: AsyncSession, credential_id):
+        return cursor_result.rowcount
+
+    async def update_last_used(self, session: AsyncSession, credential_id: str) -> int:
         current_time = datetime.now(UTC)
 
         query = (
@@ -130,4 +135,5 @@ class ServiceCredentialsRepository:
         )
 
         result = await session.execute(query)
-        return result.rowcount
+        cursor_result = cast(CursorResult[Any], result)
+        return cursor_result.rowcount

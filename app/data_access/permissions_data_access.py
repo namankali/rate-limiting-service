@@ -59,7 +59,7 @@ class PermissionsRepository:
         self,
         session: AsyncSession,
         permission_id: UUID,
-        update_data: dict,
+        update_data: dict[str, str],
     ) -> Permissions | None:
         query = (
             update(Permissions)
@@ -77,8 +77,10 @@ class PermissionsRepository:
         session: AsyncSession,
         permission_id: UUID,
     ) -> bool:
-        query = delete(Permissions).where(Permissions.id == permission_id)
+        query = delete(Permissions).where(Permissions.id == permission_id).returning(Permissions.id)
 
         result = await session.execute(query)
 
-        return result.rowcount > 0
+        deleted_id = result.scalar_one_or_none()
+
+        return deleted_id is not None

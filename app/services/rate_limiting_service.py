@@ -3,7 +3,7 @@ from uuid import UUID
 from app.algorithms.base import RateLimitingAlgorithm
 from app.helpers.formatter import make_quota_key
 from app.helpers.redis_key_builder import make_redis_key
-from app.policies.policy import RateLimitAlgorithms, Resources
+from app.policies.policy import IdentityTypes, RateLimitAlgorithms, Resources
 from app.schemas.rate_limit import RateLimitResponse
 from app.services.policy_service import PolicyService
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +33,7 @@ class RateLimitingService:
         self,
         resource: Resources,
         route: str,
-        identity_type: str,
+        identity_type: IdentityTypes,
         identity_value: str,
         client_id: UUID,
         session: AsyncSession,

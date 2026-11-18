@@ -4,12 +4,12 @@ router = APIRouter()
 
 
 @router.get("/live")
-async def liveliness():
+async def liveliness() -> dict[str, str]:
     return {"status": "alive", "message": "Application process is running"}
 
 
 @router.get("/ready")
-async def readiness():
+async def readiness() -> dict[str, str]:
     # will add external dependencies
     is_ready = True
     if not is_ready:

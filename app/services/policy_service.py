@@ -40,19 +40,19 @@ class PolicyService:
         if isinstance(algorithm, str):
             algorithm = RateLimitAlgorithms(algorithm)
 
-        config_mapping = {
-            RateLimitAlgorithms.FIXED_WINDOW: FixedWindowConfig,
-            RateLimitAlgorithms.SLIDING_WINDOW_LOG: SlidingWindowConfig,
-            RateLimitAlgorithms.TOKEN_BUCKET: TokenBucketConfig,
-            RateLimitAlgorithms.LEAKY_BUCKET: LeakyBucketConfig,
-        }
+        if algorithm == RateLimitAlgorithms.FIXED_WINDOW:
+            return FixedWindowConfig(**config)
 
-        config_class = config_mapping.get(algorithm)
+        elif algorithm == RateLimitAlgorithms.SLIDING_WINDOW_LOG:
+            return SlidingWindowConfig(**config)
 
-        if config_class is None:
-            raise ValueError("Unsupported rate-limiting algorithm")
+        elif algorithm == RateLimitAlgorithms.TOKEN_BUCKET:
+            return TokenBucketConfig(**config)
 
-        return config_class(**config)
+        elif algorithm == RateLimitAlgorithms.LEAKY_BUCKET:
+            return LeakyBucketConfig(**config)
+
+        raise ValueError("Unsupported rate-limiting algorithm")
 
     def generate_policy_identifier(self, resource: str) -> str:
         return f"{resource}-{uuid4()}"
@@ -269,7 +269,7 @@ class PolicyService:
         session: AsyncSession,
         resource: Resources,
         route: str,
-        identity_type: str,
+        identity_type: IdentityTypes,
         client_id: UUID,
         method: str,
     ) -> Policy | None:
@@ -307,22 +307,32 @@ class PolicyService:
         return self._convert_to_domain_policy(selected_policy)
 
     @staticmethod
-    def _convert_to_domain_policy(policy_record) -> Policy:
+    def _convert_to_domain_policy(
+        policy_record: PolicyModel,
+    ) -> Policy:
         algorithm = RateLimitAlgorithms(policy_record.algorithm)
         identity_type = IdentityTypes(policy_record.identity_type)
         resource = Resources(policy_record.resource)
         quota_scope = QuotaScope(policy_record.quota_scope)
 
-        config_models = {
-            RateLimitAlgorithms.FIXED_WINDOW: FixedWindowConfig,
-            RateLimitAlgorithms.SLIDING_WINDOW_LOG: SlidingWindowConfig,
-            RateLimitAlgorithms.TOKEN_BUCKET: TokenBucketConfig,
-            RateLimitAlgorithms.LEAKY_BUCKET: LeakyBucketConfig,
-        }
+        algorithm_config: (
+            FixedWindowConfig | SlidingWindowConfig | TokenBucketConfig | LeakyBucketConfig
+        )
 
-        config_model = config_models[algorithm]
+        if algorithm == RateLimitAlgorithms.FIXED_WINDOW:
+            algorithm_config = FixedWindowConfig(**policy_record.algorithm_config)
 
-        algorithm_config = config_model(**policy_record.algorithm_config)
+        elif algorithm == RateLimitAlgorithms.SLIDING_WINDOW_LOG:
+            algorithm_config = SlidingWindowConfig(**policy_record.algorithm_config)
+
+        elif algorithm == RateLimitAlgorithms.TOKEN_BUCKET:
+            algorithm_config = TokenBucketConfig(**policy_record.algorithm_config)
+
+        elif algorithm == RateLimitAlgorithms.LEAKY_BUCKET:
+            algorithm_config = LeakyBucketConfig(**policy_record.algorithm_config)
+
+        else:
+            raise ValueError("Unsupported rate-limiting algorithm")
 
         return Policy(
             algorithm=algorithm,

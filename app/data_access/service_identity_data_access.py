@@ -31,7 +31,7 @@ class ServiceIdentityRepository:
 
         return list(result.scalars().all())
 
-    async def get_by_id(self, session: AsyncSession, service_id: UUID) -> ServiceIdentity:
+    async def get_by_id(self, session: AsyncSession, service_id: UUID) -> ServiceIdentity | None:
         query = (
             select(ServiceIdentity)
             .where(ServiceIdentity.id == service_id)

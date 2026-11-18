@@ -7,8 +7,10 @@ from app.data_access.service_identity_data_access import (
 from app.data_access.service_permissions_data_access import (
     ServicePermissionsRepository,
 )
+from app.db.postgres.models.service_permissions import ServicePermissions
 from app.exceptions.base import ApplicationError
 from app.exceptions.database import DatabaseIntegrityError
+from app.schemas.service_permissions import ServicePermissionByServiceIdentity
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +56,7 @@ class ServicePermissionsService:
         self,
         session: AsyncSession,
         payload: ServicePermissionAssignPayload,
-    ):
+    ) -> ServicePermissions:
         try:
             service_identity = await self.service_identity_data_access.get_by_id(
                 session=session,
@@ -110,18 +112,20 @@ class ServicePermissionsService:
         self,
         session: AsyncSession,
         service_identity_id: UUID,
-    ):
-        return await self.service_permissions_data_access.get_by_service_identity(
+    ) -> list[ServicePermissionByServiceIdentity]:
+        db_result = await self.service_permissions_data_access.get_by_service_identity(
             session=session,
             service_identity_id=service_identity_id,
         )
+
+        return [ServicePermissionByServiceIdentity.model_validate(res) for res in db_result]
 
     async def remove_permission(
         self,
         session: AsyncSession,
         service_identity_id: UUID,
         permission_id: UUID,
-    ):
+    ) -> None:
         try:
             removed = await self.service_permissions_data_access.remove_permission(
                 session=session,

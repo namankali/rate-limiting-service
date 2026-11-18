@@ -93,7 +93,7 @@ class PolicyRepository:
         identity_type: IdentityTypes,
         client_id: UUID,
         method: str,
-    ) -> Policy:
+    ) -> list[Policy]:
         query = select(Policy).where(
             Policy.resource == resource.value,
             Policy.client_id == client_id,

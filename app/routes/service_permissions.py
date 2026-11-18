@@ -4,6 +4,10 @@ from uuid import UUID
 from fastapi import APIRouter, Request, status
 
 from app.helpers.custom_types import DataBaseSession
+from app.schemas.service_permissions import (
+    ServicePermissionByServiceIdentity,
+    ServicePermissionResponse,
+)
 from app.services.service_permissions import (
     ServicePermissionAssignPayload,
     ServicePermissionsService,
@@ -23,12 +27,14 @@ async def assign_permission(
     payload: ServicePermissionAssignPayload,
     session: DataBaseSession,
     request: Request,
-):
+) -> ServicePermissionResponse:
     service = cast(ServicePermissionsService, request.app.state.service_permissions_service)
-    return await service.assign_permission(
+    sp = await service.assign_permission(
         session=session,
         payload=payload,
     )
+
+    return ServicePermissionResponse.model_validate(sp)
 
 
 @router.get("/{service_identity_id}")
@@ -36,7 +42,7 @@ async def get_service_permissions(
     service_identity_id: UUID,
     session: DataBaseSession,
     request: Request,
-):
+) -> list[ServicePermissionByServiceIdentity]:
     service = cast(ServicePermissionsService, request.app.state.service_permissions_service)
     return await service.get_service_permissions(
         session=session,
@@ -53,7 +59,7 @@ async def remove_permission(
     permission_id: UUID,
     session: DataBaseSession,
     request: Request,
-):
+) -> None:
     service = cast(ServicePermissionsService, request.app.state.service_permissions_service)
     await service.remove_permission(
         session=session,

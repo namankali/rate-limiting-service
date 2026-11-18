@@ -1,8 +1,10 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from app.db.postgres.models.permissions import Permissions
 from app.db.postgres.models.service_permissions import ServicePermissions
 from sqlalchemy import delete, select
+from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -28,7 +30,7 @@ class ServicePermissionsRepository:
         self,
         session: AsyncSession,
         service_identity_id: UUID,
-    ):
+    ) -> Sequence[RowMapping]:
         query = (
             select(
                 ServicePermissions.id,
@@ -53,7 +55,7 @@ class ServicePermissionsRepository:
         session: AsyncSession,
         service_identity_id: UUID,
         permission_id: UUID,
-    ):
+    ) -> ServicePermissions | None:
         query = select(ServicePermissions).where(
             ServicePermissions.service_identity_id == service_identity_id,
             ServicePermissions.permission_id == permission_id,
@@ -74,7 +76,8 @@ class ServicePermissionsRepository:
         )
 
         result = await session.execute(query)
-        return result.rowcount > 0
+        deleted_id = result.scalar_one_or_none()
+        return deleted_id is not None
 
     async def has_permission(
         self,

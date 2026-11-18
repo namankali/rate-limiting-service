@@ -9,7 +9,7 @@ from app.policies.policy import IdentityTypes, Resources
 class RateLimitRequest(BaseModel):
     resource: Resources
     route: str = Field(min_length=1)
-    identity_type: str
+    identity_type: IdentityTypes
     method: str
     identity_value: str = Field(min_length=1)
 

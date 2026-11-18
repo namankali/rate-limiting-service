@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     def decode_hmac_keys(self) -> dict[str, bytes]:
         new_dict: dict[str, bytes] = {}
         for field, value in self.hmac_keys.items():
-            value = base64.urlsafe_b64decode(value)
-            new_dict[field] = value
+            decoded_value = base64.urlsafe_b64decode(value)
+            new_dict[field] = decoded_value
         return new_dict
 
     @model_validator(mode="after")

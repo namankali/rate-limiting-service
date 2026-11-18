@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from app.data_access.service_credentials_data_access import ServiceCredentialsRepository
@@ -27,7 +28,7 @@ class ServiceCredtialsService:
         service_credential_data_access: ServiceCredentialsRepository,
         service_identity_data_access: ServiceIdentityRepository,
         hmac_key_version: str,
-        hmac_keys,
+        hmac_keys: dict[str, Any],
     ):
         self.service_credential_data_access = service_credential_data_access
         self.service_identity_data_access = service_identity_data_access
@@ -67,12 +68,14 @@ class ServiceCredtialsService:
             )
             await session.commit()
 
-            return {
-                "credential": f"{credential_id}:{secret}",
-                "service_identity_id": service_identity_id,
-                "name": payload.name,
-                "not_before": not_before,
-            }
+            return ServiceCredentialResponse.model_validate(
+                {
+                    "credential": f"{credential_id}:{secret}",
+                    "service_identity_id": service_identity_id,
+                    "name": payload.name,
+                    "not_before": not_before,
+                }
+            )
         except IntegrityError as exc:
             await session.rollback()
             raise DatabaseIntegrityError(
@@ -91,7 +94,10 @@ class ServiceCredtialsService:
                 f"No related data was found related to service credential: {credential_id}"
             )
 
-        return db_result
+        if hash:
+            return ServiceCredentialVerification.model_validate(db_result)
+
+        return ServiceCredentialResponseById.model_validate(db_result)
 
     async def get_service_credentials(
         self, session: AsyncSession, service_identity_id: UUID
@@ -99,7 +105,7 @@ class ServiceCredtialsService:
         db_result = await self.service_credential_data_access.get_credetials_details_by_service_id(
             session=session, service_identity_id=service_identity_id
         )
-        return db_result
+        return [ServiceCredtialResponseByServiceIdentityId.model_validate(row) for row in db_result]
 
     async def update_service_credential_by_id(
         self, session: AsyncSession, credential_id: str
@@ -161,12 +167,14 @@ class ServiceCredtialsService:
 
             await session.commit()
 
-            return {
-                "credential": f"{new_credential_id}:{new_secret}",
-                "service_identity_id": service_credential_data["service_identity_id"],
-                "name": service_credential_data["name"],
-                "not_before": current_time,
-            }
+            return ServiceCredentialResponse.model_validate(
+                {
+                    "credential": f"{new_credential_id}:{new_secret}",
+                    "service_identity_id": service_credential_data["service_identity_id"],
+                    "name": service_credential_data["name"],
+                    "not_before": current_time,
+                }
+            )
 
         except ServiceCredentialNotFound, InvalidServiceCredntialError:
             await session.rollback()

@@ -8,7 +8,7 @@ class AuthorizationService:
     def __init__(self, service_permission_service: ServicePermissionsService):
         self.service_permission_service = service_permission_service
 
-    async def has_permission(self, service_identity_id: UUID, session: AsyncSession):
+    async def has_permission(self, service_identity_id: UUID, session: AsyncSession) -> bool:
         is_allowed = await self.service_permission_service.check_permission(
             session=session,
             service_identity_id=service_identity_id,
