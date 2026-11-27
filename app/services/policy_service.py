@@ -19,6 +19,7 @@ from app.policies.policy import (
     Resources,
 )
 from app.schemas.policy import PolicyCreate
+from app.services.poilicy_cache import PolicyCache
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,9 +29,11 @@ class PolicyService:
         self,
         policy: PolicyRepository,
         client: ClientRepository,
+        policy_cache: PolicyCache,
     ):
         self.policy = policy
         self.client = client
+        self.policy_cache = policy_cache
 
     def build_algorithm_config(
         self,
@@ -273,13 +276,25 @@ class PolicyService:
         client_id: UUID,
         method: str,
     ) -> Policy | None:
+        cache_key = self.policy_cache.build_key(
+            client_id=client_id,
+            identity_type=identity_type,
+            method=method.lower(),
+            resource=resource,
+            route=route,
+        )
+
+        cache_data = await self.policy_cache.get(key=cache_key)
+
+        if cache_data is not None:
+            return cache_data
         policy_result = await self.policy.get_matching_policy_candidates(
             session=session,
             identity_type=identity_type,
             route=route,
             resource=resource,
             client_id=client_id,
-            method=method,
+            method=method.lower(),
         )
 
         if not policy_result:
@@ -304,7 +319,14 @@ class PolicyService:
             else:
                 return None
 
-        return self._convert_to_domain_policy(selected_policy)
+        domain_policy = self._convert_to_domain_policy(selected_policy)
+
+        # set cache
+        await self.policy_cache.set(
+            policy=domain_policy,
+            key=cache_key,
+        )
+        return domain_policy
 
     @staticmethod
     def _convert_to_domain_policy(

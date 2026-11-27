@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -19,6 +20,8 @@ from app.data_access.policy_data_access import PolicyRepository
 from app.data_access.service_credentials_data_access import ServiceCredentialsRepository
 from app.data_access.service_identity_data_access import ServiceIdentityRepository
 from app.data_access.service_permissions_data_access import ServicePermissionsRepository
+from app.data_access.user_data_access import UserRepository
+from app.data_access.user_session_data_access import UserSessionRepository
 from app.db.postgres.client import AsyncSessionFactory, engine
 from app.db.redis.client import create_redis_client
 from app.exceptions.base import ApplicationError
@@ -30,15 +33,20 @@ from app.routes import (
     rate_limit,
     service_identity,
     service_permissions,
+    user_session,
+    users,
 )
 from app.services.authentication import Authentication
 from app.services.authorization import AuthorizationService
 from app.services.permissions_service import PermissionsService
+from app.services.poilicy_cache import PolicyCache
 from app.services.policy_service import PolicyService
 from app.services.rate_limiting_service import RateLimitingService
 from app.services.service_credential_service import ServiceCredtialsService
 from app.services.service_identity_service import ServiceIdentityService
 from app.services.service_permissions import ServicePermissionsService
+from app.services.user_service import UserService
+from app.services.user_session_service import UserSessionService
 
 logging.basicConfig(
     level=logging.INFO,
@@ -75,11 +83,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.service_credentials_repository = ServiceCredentialsRepository()
         app.state.permissions_repository = PermissionsRepository()
         app.state.service_permissions_repository = ServicePermissionsRepository()
+        app.state.user_repository = UserRepository()
+
+        app.state.user_session_repository = UserSessionRepository()
+
+        app.state.user_session_service = UserSessionService(
+            user_repository=app.state.user_repository,
+            session_repository=app.state.user_session_repository,
+            session_duration_hours=8,
+        )
 
         app.state.authentication = Authentication(
             service_credential_data_access=app.state.service_credentials_repository,
             hmac_keys=app.state.settings.decode_hmac_keys,
         )
+        app.state.user_service = UserService(
+            repository=app.state.user_repository,
+        )
+
         app.state.service_permissions_service = ServicePermissionsService(
             service_permissions_data_access=app.state.service_permissions_repository,
             service_identity_data_access=app.state.service_identity_repository,
@@ -103,7 +124,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             service_identity=app.state.service_identity_repository,
         )
         app.state.policy_service = PolicyService(
-            policy=app.state.policy_repository, client=app.state.client_repository
+            policy=app.state.policy_repository,
+            client=app.state.client_repository,
+            policy_cache=PolicyCache(redis_client=app.state.redis, ttl_seconds=60),
         )
         app.state.rate_limiting_service = RateLimitingService(
             leaky_bucket=LeakyBucket(redis_client=redis_client),
@@ -138,16 +161,43 @@ async def application_exception_handler(request: Request, exec: ApplicationError
     )
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    body = await request.body()
+
+    logger.error(
+        "Request validation failed | path=%s | method=%s | body=%s | errors=%s",
+        request.url.path,
+        request.method,
+        body.decode("utf-8", errors="replace"),
+        exc.errors(),
+    )
+
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
+
+
 app.include_router(health.router, prefix="/health", tags=["Health"])
 app.include_router(permissions.router)
 app.include_router(service_permissions.router)
 app.include_router(rate_limit.router, prefix="/rate", tags=["Rate Limit"])
 app.include_router(client.router, prefix="/client", tags=["Clients"])
+app.include_router(users.router)
 app.include_router(service_identity.router, prefix="/service-identity", tags=["Service Identity"])
 app.include_router(
     policy.router,
     prefix="/policies",
     tags=["Policies"],
+)
+app.include_router(
+    user_session.router,
+    prefix="/auth",
+    tags=["Authentication"],
 )
 
 

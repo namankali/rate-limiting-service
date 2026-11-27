@@ -4,9 +4,11 @@ from typing import Any, cast
 from uuid import UUID
 
 from app.db.postgres.models.client import Client
+from app.db.postgres.models.permissions import Permissions
 from app.db.postgres.models.service_credentials import ServiceCredentials
 from app.db.postgres.models.service_identity import ServiceIdentity
-from sqlalchemy import RowMapping, or_, select, update
+from app.db.postgres.models.service_permissions import ServicePermissions
+from sqlalchemy import RowMapping, exists, or_, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,8 +40,24 @@ class ServiceCredentialsRepository:
         return service_cred
 
     async def get_by_credential_id(
-        self, session: AsyncSession, credential_id: str, hash: bool = False
+        self,
+        session: AsyncSession,
+        credential_id: str,
+        hash: bool = False,
     ) -> RowMapping | None:
+        has_permission = exists(
+            select(1)
+            .select_from(ServicePermissions)
+            .join(
+                Permissions,
+                Permissions.id == ServicePermissions.permission_id,
+            )
+            .where(
+                ServicePermissions.service_identity_id == ServiceCredentials.service_identity_id,
+                Permissions.name == "ratelimit:check",
+            )
+        ).label("has_permission")
+
         columns = [
             ServiceCredentials.id,
             ServiceCredentials.name,
@@ -51,13 +69,18 @@ class ServiceCredentialsRepository:
             ServiceIdentity.id.label("service_identity_id"),
             ServiceIdentity.name.label("service_identity_name"),
             ServiceIdentity.is_active.label("service_identity_is_active"),
+            has_permission,
         ]
 
         if hash:
-            columns.append(ServiceCredentials.credential_hash)
-            columns.append(ServiceCredentials.not_before)
-            columns.append(ServiceIdentity.client_id)
-            columns.append(Client.name.label("client_name"))
+            columns.extend(
+                [
+                    ServiceCredentials.credential_hash,
+                    ServiceCredentials.not_before,
+                    ServiceIdentity.client_id,
+                    Client.name.label("client_name"),
+                ]
+            )
 
         query = (
             select(*columns)
@@ -65,11 +88,15 @@ class ServiceCredentialsRepository:
                 ServiceIdentity,
                 ServiceCredentials.service_identity_id == ServiceIdentity.id,
             )
-            .outerjoin(Client, Client.id == ServiceIdentity.client_id)
+            .outerjoin(
+                Client,
+                Client.id == ServiceIdentity.client_id,
+            )
             .where(ServiceCredentials.credential_id == credential_id)
         )
 
         result = await session.execute(query)
+
         return result.mappings().one_or_none()
 
     async def get_credetials_details_by_service_id(

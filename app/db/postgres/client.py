@@ -1,15 +1,18 @@
+import logging
 import os
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
-from sqlalchemy.engine import make_url
+from sqlalchemy import event
+from sqlalchemy.engine import Connection, make_url
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import ConnectionPoolEntry, PoolProxiedConnection
 
-# Load .env from the project root
 BASE_DIR = Path(__file__).resolve().parents[3]
 load_dotenv(BASE_DIR / ".env")
 
@@ -39,10 +42,36 @@ url = url.set(
 
 # Create asynchronous engine
 engine = create_async_engine(
-    url,
-    echo=False,
-    pool_pre_ping=True,
+    url, echo=False, pool_pre_ping=True, pool_size=5, max_overflow=10, pool_timeout=5
 )
+
+logger = logging.getLogger(__name__)
+
+
+@event.listens_for(engine.sync_engine, "checkout")
+def on_connection_checkout(
+    dbapi_connection: PoolProxiedConnection,
+    connection_record: ConnectionPoolEntry,
+    connection_proxy: Connection,
+) -> None:
+    connection_record.info["checkout_time"] = time.perf_counter()
+
+
+@event.listens_for(engine.sync_engine, "checkin")
+def on_connection_checkin(
+    dbapi_connection: PoolProxiedConnection,
+    connection_record: ConnectionPoolEntry,
+) -> None:
+    checkout_time = connection_record.info.pop("checkout_time", None)
+
+    if checkout_time is not None:
+        duration = time.perf_counter() - checkout_time
+
+        logger.info(
+            "Database connection checked in | connection_hold_duration=%.4f seconds",
+            duration,
+        )
+
 
 # Create session factory
 AsyncSessionFactory = async_sessionmaker(

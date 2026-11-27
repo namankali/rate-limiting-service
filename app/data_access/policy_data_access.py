@@ -32,7 +32,7 @@ class PolicyRepository:
             identity_type=identity_type,
             quota_scope=quota_scope,
             name=name,
-            method=method,
+            method=method.lower(),
         )
 
         session.add(policy)

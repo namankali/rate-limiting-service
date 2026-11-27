@@ -17,6 +17,7 @@ async def evaluate_request(
     session: DataBaseSession,
     authorisation: AuthorizationServiceDependency,
 ) -> RateLimitResponse:
+    print("incoming payload", payload)
     print("authorisation", authorisation)
     service = cast(RateLimitingService, request.app.state.rate_limiting_service)
     try:
@@ -29,6 +30,8 @@ async def evaluate_request(
             session=session,
             method=payload.method,
         )
+
+        print("result", result)
 
         return result
     except ValueError as e:

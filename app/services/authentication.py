@@ -15,6 +15,7 @@ class AuthenticateResponse(BaseModel):
     service_id: UUID
     client_id: UUID
     client_name: str
+    has_permission: bool
 
 
 class Authentication:
@@ -69,16 +70,17 @@ class Authentication:
             ):
                 raise AuthenticationError("Credential expired")
 
-            update_last_used = await self.service_credential_data_access.update_last_used(
-                session=session, credential_id=credential_id
-            )
-            if update_last_used != 1:
-                raise AuthenticationError("Credential could not be updated")
+            # update_last_used = await self.service_credential_data_access.update_last_used(
+            #     session=session, credential_id=credential_id
+            # )
+            # if update_last_used != 1:
+            #     raise AuthenticationError("Credential could not be updated")
 
             return AuthenticateResponse(
                 service_id=credential_data.service_identity_id,
                 client_id=credential_data.client_id,
                 client_name=credential_data.client_name,
+                has_permission=credential_data.has_permission,
             )
 
         except IntegrityError as exc:
