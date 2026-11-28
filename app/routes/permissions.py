@@ -1,8 +1,9 @@
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 
+from app.dependencies.admin import require_admin
 from app.helpers.custom_types import DataBaseSession
 from app.services.permissions_service import (
     PermissionCreate,
@@ -12,8 +13,7 @@ from app.services.permissions_service import (
 )
 
 router = APIRouter(
-    prefix="/permissions",
-    tags=["Permissions"],
+    prefix="/permissions", tags=["Permissions"], dependencies=[Depends(require_admin)]
 )
 
 
@@ -36,7 +36,7 @@ async def create_permission(
 
 
 @router.get(
-    "/",
+    "/all",
     response_model=list[PermissionResponse],
 )
 async def get_all_permissions(

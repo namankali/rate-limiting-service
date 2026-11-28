@@ -1,8 +1,9 @@
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 
+from app.dependencies.admin import require_admin
 from app.helpers.custom_types import DataBaseSession
 from app.schemas.service_permissions import (
     ServicePermissionByServiceIdentity,
@@ -16,6 +17,7 @@ from app.services.service_permissions import (
 router = APIRouter(
     prefix="/service-permissions",
     tags=["Service Permissions"],
+    dependencies=[Depends(require_admin)],
 )
 
 

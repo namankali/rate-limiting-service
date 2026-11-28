@@ -1,8 +1,9 @@
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.dependencies.admin import require_admin
 from app.helpers.custom_types import DataBaseSession
 from app.schemas.policy import (
     PolicyCreate,
@@ -11,7 +12,7 @@ from app.schemas.policy import (
 )
 from app.services.policy_service import PolicyService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 # policy_service = PolicyService(
 #     policy=PolicyRepository(),

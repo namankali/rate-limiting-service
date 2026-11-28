@@ -13,6 +13,13 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import ConnectionPoolEntry, PoolProxiedConnection
 
+from app.core.metrics import (
+    POSTGRES_CONNECTION_HOLD_DURATION_SECONDS,
+    POSTGRES_CONNECTIONS_CHECKED_IN_TOTAL,
+    POSTGRES_CONNECTIONS_CHECKED_OUT_TOTAL,
+    POSTGRES_CONNECTIONS_IN_USE,
+)
+
 BASE_DIR = Path(__file__).resolve().parents[3]
 load_dotenv(BASE_DIR / ".env")
 
@@ -42,7 +49,7 @@ url = url.set(
 
 # Create asynchronous engine
 engine = create_async_engine(
-    url, echo=False, pool_pre_ping=True, pool_size=5, max_overflow=10, pool_timeout=5
+    url, echo=False, pool_pre_ping=True, pool_size=15, max_overflow=5, pool_timeout=5
 )
 
 logger = logging.getLogger(__name__)
@@ -56,6 +63,9 @@ def on_connection_checkout(
 ) -> None:
     connection_record.info["checkout_time"] = time.perf_counter()
 
+    POSTGRES_CONNECTIONS_IN_USE.inc()
+    POSTGRES_CONNECTIONS_CHECKED_OUT_TOTAL.inc()
+
 
 @event.listens_for(engine.sync_engine, "checkin")
 def on_connection_checkin(
@@ -67,10 +77,15 @@ def on_connection_checkin(
     if checkout_time is not None:
         duration = time.perf_counter() - checkout_time
 
+        POSTGRES_CONNECTION_HOLD_DURATION_SECONDS.observe(duration)
+
         logger.info(
             "Database connection checked in | connection_hold_duration=%.4f seconds",
             duration,
         )
+
+        POSTGRES_CONNECTIONS_CHECKED_IN_TOTAL.inc()
+        POSTGRES_CONNECTIONS_IN_USE.dec()
 
 
 # Create session factory

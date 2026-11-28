@@ -1,6 +1,57 @@
 import math
+import time
+from typing import Any
 
+from app.core.metrics import (
+    REDIS_ERRORS_TOTAL,
+    REDIS_OPERATION_DURATION_SECONDS,
+    REDIS_OPERATIONS_TOTAL,
+)
 from redis.asyncio import Redis
+
+
+async def _execute_script(
+    redis_client: Redis,
+    operation: str,
+    script: str,
+    key: str,
+    *args: Any,
+) -> Any:
+    start_time = time.perf_counter()
+
+    try:
+        result = await redis_client.eval(
+            script,
+            1,
+            key,
+            *args,
+        )
+
+    except Exception:
+        REDIS_OPERATIONS_TOTAL.labels(
+            operation=operation,
+            status="error",
+        ).inc()
+
+        REDIS_ERRORS_TOTAL.labels(
+            operation=operation,
+        ).inc()
+
+        raise
+
+    else:
+        REDIS_OPERATIONS_TOTAL.labels(
+            operation=operation,
+            status="success",
+        ).inc()
+
+        return result
+
+    finally:
+        REDIS_OPERATION_DURATION_SECONDS.labels(
+            operation=operation,
+        ).observe(time.perf_counter() - start_time)
+
 
 FIXED_WINDOW_SCRIPT = """
 local key = KEYS[1]
@@ -88,9 +139,10 @@ async def evaluate_fixed_window(
 
     window_ms = math.ceil(window_seconds * 1000)
 
-    result = await redis_client.eval(
+    result = await _execute_script(
+        redis_client,
+        "fixed_window",
         FIXED_WINDOW_SCRIPT,
-        1,
         key,
         limit,
         window_ms,
@@ -181,9 +233,10 @@ async def evaluate_sliding_window(
 
     window_ms = math.ceil(window_seconds * 1000)
 
-    result = await redis_client.eval(
+    result = await _execute_script(
+        redis_client,
+        "sliding_window",
         SLIDING_WINDOW_SCRIPT,
-        1,
         key,
         limit,
         window_ms,
@@ -291,9 +344,10 @@ async def evaluate_token_bucket(
     if not isinstance(grace_ms, int) or grace_ms < 0:
         raise ValueError("Grace period must be a non-negative integer")
 
-    result = await redis_client.eval(
+    result = await _execute_script(
+        redis_client,
+        "token_bucket",
         TOKEN_BUCKET_SCRIPT,
-        1,
         key,
         capacity,
         refill_rate,
@@ -409,9 +463,10 @@ async def evaluate_leaky_bucket(
     if not isinstance(grace_ms, int) or grace_ms < 0:
         raise ValueError("Grace period must be a non-negative integer")
 
-    result = await redis_client.eval(
+    result = await _execute_script(
+        redis_client,
+        "leaky_bucket",
         LEAKY_BUCKET_SCRIPT,
-        1,
         key,
         capacity,
         leak_rate,

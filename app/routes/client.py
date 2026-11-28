@@ -1,8 +1,9 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.data_access.client_data_access import ClientRepository
+from app.dependencies.admin import require_admin
 from app.helpers.custom_types import DataBaseSession
 from app.schemas.client import (
     ClientCreate,
@@ -12,7 +13,7 @@ from app.schemas.client import (
 )
 from app.services.client_service import ClientService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 
 client_service = ClientService(repository=ClientRepository())

@@ -1,7 +1,7 @@
-import time
 from uuid import UUID
 
 from app.algorithms.base import RateLimitingAlgorithm
+from app.core.metrics import RATE_LIMIT_ALGORITHM_TOTAL, RATE_LIMIT_DECISIONS_TOTAL
 from app.helpers.formatter import make_quota_key
 from app.helpers.redis_key_builder import make_redis_key
 from app.policies.policy import IdentityTypes, RateLimitAlgorithms, Resources
@@ -47,8 +47,6 @@ class RateLimitingService:
         #     identity_value=identity_value,
         # )
 
-        start = time.perf_counter()
-
         policy = await self.policy_service.get_matching_policy(
             resource=resource,
             identity_type=identity_type,
@@ -57,8 +55,6 @@ class RateLimitingService:
             route=route,
             method=method,
         )
-
-        print("***********************Policy lookup:", time.perf_counter() - start)
 
         await session.rollback()
 
@@ -85,12 +81,17 @@ class RateLimitingService:
         if algorithm is None:
             raise ValueError(f"Unsupported rate-limiting algorithm: {policy.algorithm}")
 
-        start = time.perf_counter()
+        RATE_LIMIT_ALGORITHM_TOTAL.labels(algorithm=policy.algorithm.value).inc()
+
         result = await algorithm.evaluate(
             key=redis_key,
             policy=policy,
         )
-        print("*********************Algorithm evaluation:", time.perf_counter() - start)
+
+        RATE_LIMIT_DECISIONS_TOTAL.labels(
+            algorithm=policy.algorithm.value,
+            decision="allowed" if result.allowed else "denied",
+        ).inc()
 
         return RateLimitResponse(
             retry_after=result.state.retry_after,

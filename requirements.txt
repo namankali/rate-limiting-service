@@ -18,3 +18,4 @@ pydantic-settings==2.16.1
 python-dotenv==1.2.4
 email-validator==2.4.0
 pwdlib[argon2]==0.4.2
+prometheus-client==0.26.0

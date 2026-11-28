@@ -1,12 +1,14 @@
+import asyncio
 import base64
 import logging
 import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import text
 
 from app.algorithms.fixed_window import FixedWindowCounter
@@ -14,6 +16,7 @@ from app.algorithms.leaky_bucket import LeakyBucket
 from app.algorithms.sliding_window_log import SlidingWindowLog
 from app.algorithms.token_bucket import TokenBucket
 from app.core.config import Settings
+from app.core.logging_config import JSONFormatter
 from app.data_access.client_data_access import ClientRepository
 from app.data_access.permissions_data_access import PermissionsRepository
 from app.data_access.policy_data_access import PolicyRepository
@@ -25,6 +28,7 @@ from app.data_access.user_session_data_access import UserSessionRepository
 from app.db.postgres.client import AsyncSessionFactory, engine
 from app.db.redis.client import create_redis_client
 from app.exceptions.base import ApplicationError
+from app.middleware.metrics_middleware import PrometheusMiddleware
 from app.routes import (
     client,
     health,
@@ -48,9 +52,13 @@ from app.services.service_permissions import ServicePermissionsService
 from app.services.user_service import UserService
 from app.services.user_session_service import UserSessionService
 
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter())
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    handlers=[handler],
+    force=True,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,6 +82,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         logger.info("PostgreSQL connected successfully")
 
+        app.state.db_semaphore = asyncio.Semaphore(20)
         app.state.redis = redis_client
         app.state.engine = engine
         app.state.db_session_factory = AsyncSessionFactory
@@ -140,9 +149,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
 
     finally:
-        await redis_client.aclose()
-        await engine.dispose()
-        print("Database and Redis connections closed")
+        try:
+            await redis_client.aclose()
+        finally:
+            await engine.dispose()
+            print("Database and Redis connections closed")
 
 
 app = FastAPI(
@@ -151,6 +162,7 @@ app = FastAPI(
     description="Applies rate limiting for different applications",
     lifespan=lifespan,
 )
+app.add_middleware(PrometheusMiddleware)
 
 
 @app.exception_handler(ApplicationError)
@@ -161,19 +173,27 @@ async def application_exception_handler(request: Request, exec: ApplicationError
     )
 
 
+# Prometheus metrics endpoint
+@app.get("/metrics", include_in_schema=False)
+async def metrics() -> Response:
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
-    body = await request.body()
+    await request.body()
 
-    logger.error(
-        "Request validation failed | path=%s | method=%s | body=%s | errors=%s",
+    logger.warning(
+        "Request validation failed | path=%s | method=%s | errors=%s",
         request.url.path,
         request.method,
-        body.decode("utf-8", errors="replace"),
-        exc.errors(),
+        [{"location": error["loc"], "type": error["type"]} for error in exc.errors()],
     )
 
     return JSONResponse(

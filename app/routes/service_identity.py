@@ -1,8 +1,9 @@
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 
+from app.dependencies.admin import require_admin
 from app.helpers.custom_types import DataBaseSession
 from app.schemas.service_credential import (
     ServiceCredentialPayload,
@@ -18,7 +19,7 @@ from app.schemas.service_identity import (
 from app.services.service_credential_service import ServiceCredtialsService
 from app.services.service_identity_service import ServiceIdentityService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 
 @router.post("/", response_model=ServiceIdentityResponse, status_code=status.HTTP_201_CREATED)
